@@ -1,228 +1,320 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 
-type Task = {
-  id: number;
-  title: string;
-  priority: "Low" | "Medium" | "High";
-  completed: boolean;
-};
+const menu = [
+  { name: "Home", icon: "⌂", path: "/" },
+  { name: "Manny AI", icon: "✦", path: "/ai" },
+  { name: "Projects", icon: "▣", path: "/projects" },
+  { name: "Tasks", icon: "✓", path: "/tasks" },
+  { name: "Notes", icon: "□", path: "/notes" },
+  { name: "Calendar", icon: "◷", path: "/calendar" },
+  { name: "Creator", icon: "▶", path: "/creator" },
+  { name: "Developer", icon: "</>", path: "/developer" },
+];
 
-export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      title: "Finish Manny OS dashboard",
-      priority: "High",
-      completed: false,
-    },
-    {
-      id: 2,
-      title: "Build Projects module",
-      priority: "Medium",
-      completed: true,
-    },
-  ]);
-
-  const [newTask, setNewTask] = useState("");
-  const [priority, setPriority] = useState<Task["priority"]>("Medium");
-
-  function addTask() {
-    if (!newTask.trim()) return;
-
-    const task: Task = {
-      id: Date.now(),
-      title: newTask,
-      priority,
-      completed: false,
-    };
-
-    setTasks((current) => [task, ...current]);
-    setNewTask("");
-    setPriority("Medium");
-  }
-
-  function toggleTask(id: number) {
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === id
-          ? { ...task, completed: !task.completed }
-          : task
-      )
-    );
-  }
-
-  function deleteTask(id: number) {
-    setTasks((current) =>
-      current.filter((task) => task.id !== id)
-    );
-  }
-
-  const completed = tasks.filter((task) => task.completed).length;
-  const remaining = tasks.length - completed;
-
+export default function Home() {
   return (
-    <main className="min-h-screen bg-[#08090d] text-white p-6 md:p-10">
-      <div className="max-w-5xl mx-auto">
+    <main className="min-h-screen bg-[#08090d] text-white flex">
 
-        {/* Header */}
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-white/10 bg-[#0d0f14] p-5 hidden md:flex flex-col">
+
         <div className="mb-10">
-          <p className="text-blue-400 text-sm font-medium">
-            MANNY OS
-          </p>
-
-          <h1 className="text-4xl md:text-5xl font-bold mt-2">
-            Tasks
+          <h1 className="text-2xl font-bold tracking-tight">
+            Manny<span className="text-blue-500">OS</span>
           </h1>
 
-          <p className="text-gray-400 mt-3">
-            Organize what needs to get done.
+          <p className="text-xs text-gray-500 mt-1">
+            Your digital command center
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <nav className="space-y-2">
 
-          <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-5">
-            <p className="text-gray-500 text-sm">
-              Total
-            </p>
+          {menu.map((item) => (
+            <Link
+              key={item.name}
+              href={item.path}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-gray-400 hover:bg-white/5 hover:text-white transition"
+            >
+              <span className="w-5 text-center">
+                {item.icon}
+              </span>
 
-            <p className="text-3xl font-bold mt-2">
-              {tasks.length}
-            </p>
-          </div>
+              {item.name}
+            </Link>
+          ))}
 
-          <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-5">
-            <p className="text-gray-500 text-sm">
-              Remaining
-            </p>
+        </nav>
 
-            <p className="text-3xl font-bold mt-2">
-              {remaining}
-            </p>
-          </div>
+        <div className="mt-auto">
 
-          <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-5">
-            <p className="text-gray-500 text-sm">
-              Completed
-            </p>
-
-            <p className="text-3xl font-bold mt-2">
-              {completed}
-            </p>
-          </div>
+          <Link
+            href="/settings"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition"
+          >
+            ⚙ Settings
+          </Link>
 
         </div>
 
-        {/* Add Task */}
-        <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-6 mb-6">
+      </aside>
 
-          <h2 className="text-xl font-semibold">
-            Add a task
-          </h2>
+      {/* Main Content */}
+      <section className="flex-1">
 
-          <div className="flex flex-col md:flex-row gap-3 mt-5">
+        {/* Top Bar */}
+        <header className="h-20 border-b border-white/10 flex items-center justify-between px-6 md:px-10">
 
-            <input
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  addTask();
-                }
-              }}
-              placeholder="What needs to be done?"
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-            />
+          <div>
+            <p className="text-sm text-gray-500">
+              Monday, August 17
+            </p>
 
-            <select
-              value={priority}
-              onChange={(e) =>
-                setPriority(e.target.value as Task["priority"])
-              }
-              className="bg-[#11131a] border border-white/10 rounded-xl px-4 py-3 outline-none"
-            >
-              <option value="Low">Low priority</option>
-              <option value="Medium">Medium priority</option>
-              <option value="High">High priority</option>
-            </select>
+            <h2 className="text-xl font-semibold">
+              Home
+            </h2>
+          </div>
 
-            <button
-              onClick={addTask}
-              className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-medium transition"
-            >
-              Add Task
+          <div className="flex items-center gap-4">
+
+            <button className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10">
+              🔔
             </button>
 
+            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
+              M
+            </div>
+
           </div>
-        </div>
 
-        {/* Task List */}
-        <div className="space-y-3">
+        </header>
 
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className={`border border-white/10 rounded-2xl p-5 flex items-center gap-4 transition ${
-                task.completed
-                  ? "bg-white/[0.015]"
-                  : "bg-white/[0.03]"
-              }`}
-            >
+        {/* Dashboard */}
+        <div className="p-6 md:p-10">
 
-              {/* Checkbox */}
-              <button
-                onClick={() => toggleTask(task.id)}
-                className={`w-6 h-6 rounded-lg border flex items-center justify-center flex-shrink-0 ${
-                  task.completed
-                    ? "bg-blue-600 border-blue-600"
-                    : "border-white/20 hover:border-blue-500"
-                }`}
-              >
-                {task.completed && "✓"}
-              </button>
+          <div className="mb-10">
 
-              {/* Task */}
-              <div className="flex-1">
+            <p className="text-gray-500 mb-2">
+              Welcome back
+            </p>
 
-                <p
-                  className={`font-medium ${
-                    task.completed
-                      ? "line-through text-gray-600"
-                      : ""
-                  }`}
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              Good morning, Manny.
+            </h1>
+
+            <p className="text-gray-400 mt-3 max-w-xl">
+              Everything you need, organized in one digital workspace.
+            </p>
+
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+
+              <p className="text-gray-500 text-sm">
+                Projects
+              </p>
+
+              <p className="text-3xl font-bold mt-2">
+                4
+              </p>
+
+              <p className="text-xs text-green-400 mt-2">
+                Active projects
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+
+              <p className="text-gray-500 text-sm">
+                Tasks
+              </p>
+
+              <p className="text-3xl font-bold mt-2">
+                12
+              </p>
+
+              <p className="text-xs text-blue-400 mt-2">
+                To keep moving
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+
+              <p className="text-gray-500 text-sm">
+                Notes
+              </p>
+
+              <p className="text-3xl font-bold mt-2">
+                27
+              </p>
+
+              <p className="text-xs text-purple-400 mt-2">
+                Ideas captured
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+
+              <p className="text-gray-500 text-sm">
+                Productivity
+              </p>
+
+              <p className="text-3xl font-bold mt-2">
+                82%
+              </p>
+
+              <p className="text-xs text-yellow-400 mt-2">
+                Keep it going
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid lg:grid-cols-3 gap-5 mt-6">
+
+            <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+
+              <h3 className="text-lg font-semibold">
+                Quick Actions
+              </h3>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Jump straight into your workspace.
+              </p>
+
+              <div className="grid sm:grid-cols-2 gap-4 mt-6">
+
+                <Link
+                  href="/ai"
+                  className="text-left rounded-xl bg-blue-600/10 border border-blue-500/20 p-5 hover:bg-blue-600/20 transition"
                 >
-                  {task.title}
-                </p>
+                  <div className="text-2xl">
+                    ✦
+                  </div>
 
-                <span className="text-xs text-gray-500">
-                  {task.priority} priority
-                </span>
+                  <h4 className="font-semibold mt-3">
+                    Ask Manny AI
+                  </h4>
+
+                  <p className="text-sm text-gray-500 mt-1">
+                    Get help, ideas and answers.
+                  </p>
+                </Link>
+
+                <Link
+                  href="/projects"
+                  className="text-left rounded-xl bg-white/[0.03] border border-white/10 p-5 hover:bg-white/[0.06] transition"
+                >
+                  <div className="text-2xl">
+                    ▣
+                  </div>
+
+                  <h4 className="font-semibold mt-3">
+                    Create Project
+                  </h4>
+
+                  <p className="text-sm text-gray-500 mt-1">
+                    Start something new.
+                  </p>
+                </Link>
+
+                <Link
+                  href="/tasks"
+                  className="text-left rounded-xl bg-white/[0.03] border border-white/10 p-5 hover:bg-white/[0.06] transition"
+                >
+                  <div className="text-2xl">
+                    ✓
+                  </div>
+
+                  <h4 className="font-semibold mt-3">
+                    Add Task
+                  </h4>
+
+                  <p className="text-sm text-gray-500 mt-1">
+                    Capture your next action.
+                  </p>
+                </Link>
+
+                <Link
+                  href="/notes"
+                  className="text-left rounded-xl bg-white/[0.03] border border-white/10 p-5 hover:bg-white/[0.06] transition"
+                >
+                  <div className="text-2xl">
+                    □
+                  </div>
+
+                  <h4 className="font-semibold mt-3">
+                    Write Note
+                  </h4>
+
+                  <p className="text-sm text-gray-500 mt-1">
+                    Save an idea before it disappears.
+                  </p>
+                </Link>
 
               </div>
 
-              {/* Delete */}
-              <button
-                onClick={() => deleteTask(task.id)}
-                className="text-gray-500 hover:text-red-400 transition"
-              >
-                ✕
-              </button>
+            </div>
+
+            {/* Activity */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+
+              <h3 className="text-lg font-semibold">
+                Recent Activity
+              </h3>
+
+              <div className="mt-6 space-y-5">
+
+                <div>
+                  <p className="text-sm">
+                    Manny OS project created
+                  </p>
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Just now
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm">
+                    Next.js environment configured
+                  </p>
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Today
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm">
+                    GitHub repository connected
+                  </p>
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Today
+                  </p>
+                </div>
+
+              </div>
 
             </div>
-          ))}
+
+          </div>
 
         </div>
 
-        {tasks.length === 0 && (
-          <div className="text-center py-20 text-gray-500">
-            No tasks yet. Add your first task above.
-          </div>
-        )}
+      </section>
 
-      </div>
     </main>
   );
 }
