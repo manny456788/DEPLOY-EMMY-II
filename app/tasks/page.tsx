@@ -1,236 +1,228 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type Task = {
   id: number;
   title: string;
-  priority: "Low" | "Medium" | "High";
+  description: string | null;
   completed: boolean;
+  created_at: string;
 };
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      title: "Finish Manny OS dashboard",
-      priority: "High",
-      completed: false,
-    },
-    {
-      id: 2,
-      title: "Connect Manny OS to GitHub",
-      priority: "Medium",
-      completed: true,
-    },
-    {
-      id: 3,
-      title: "Plan next YouTube video",
-      priority: "Low",
-      completed: false,
-    },
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
 
-  const [newTask, setNewTask] = useState("");
-  const [priority, setPriority] =
-    useState<Task["priority"]>("Medium");
+  async function loadTasks() {
+    setLoading(true);
 
-  function addTask() {
-    if (!newTask.trim()) return;
+    const { data, error } = await supabase
+      .from("task")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    const task: Task = {
-      id: Date.now(),
-      title: newTask,
-      priority,
-      completed: false,
-    };
+    if (error) {
+      console.error("Error loading tasks:", error);
+      setLoading(false);
+      return;
+    }
 
-    setTasks((current) => [task, ...current]);
-    setNewTask("");
-    setPriority("Medium");
+    setTasks(data || []);
+    setLoading(false);
   }
 
-  function toggleTask(id: number) {
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === id
-          ? { ...task, completed: !task.completed }
-          : task
-      )
-    );
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  async function addTask() {
+    if (!title.trim()) return;
+
+    setAdding(true);
+
+    const { error } = await supabase.from("task").insert({
+      title: title.trim(),
+      description: description.trim() || null,
+      completed: false,
+    });
+
+    if (error) {
+      console.error("Error adding task:", error);
+      alert("Could not create task.");
+      setAdding(false);
+      return;
+    }
+
+    setTitle("");
+    setDescription("");
+    setAdding(false);
+
+    await loadTasks();
   }
 
-  function deleteTask(id: number) {
-    setTasks((current) =>
-      current.filter((task) => task.id !== id)
-    );
+  async function toggleTask(task: Task) {
+    const { error } = await supabase
+      .from("task")
+      .update({ completed: !task.completed })
+      .eq("id", task.id);
+
+    if (error) {
+      console.error("Error updating task:", error);
+      return;
+    }
+
+    await loadTasks();
   }
 
-  const completed = tasks.filter(
-    (task) => task.completed
-  ).length;
+  async function deleteTask(id: number) {
+    const { error } = await supabase
+      .from("task")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting task:", error);
+      return;
+    }
+
+    await loadTasks();
+  }
 
   return (
     <main className="min-h-screen bg-[#08090d] text-white p-6 md:p-10">
       <div className="max-w-5xl mx-auto">
 
+        {/* Header */}
         <div className="mb-10">
-          <p className="text-blue-400 text-sm font-medium">
-            MANNY OS
-          </p>
+          <p className="text-sm text-gray-500">Manny OS</p>
 
           <h1 className="text-4xl md:text-5xl font-bold mt-2">
             Tasks
           </h1>
 
           <p className="text-gray-400 mt-3">
-            Organize your work and keep moving forward.
+            Capture, organize and complete the things that matter.
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-
-          <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-5">
-            <p className="text-gray-500 text-sm">
-              Total
-            </p>
-
-            <p className="text-3xl font-bold mt-2">
-              {tasks.length}
-            </p>
-          </div>
-
-          <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-5">
-            <p className="text-gray-500 text-sm">
-              Completed
-            </p>
-
-            <p className="text-3xl font-bold mt-2">
-              {completed}
-            </p>
-          </div>
-
-          <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-5">
-            <p className="text-gray-500 text-sm">
-              Remaining
-            </p>
-
-            <p className="text-3xl font-bold mt-2">
-              {tasks.length - completed}
-            </p>
-          </div>
-
-        </div>
-
         {/* Add Task */}
-        <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-6 mb-6">
-
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 mb-8">
           <h2 className="text-xl font-semibold">
-            Add Task
+            Create a task
           </h2>
 
-          <div className="flex flex-col md:flex-row gap-3 mt-5">
+          <div className="mt-5 space-y-4">
 
             <input
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  addTask();
-                }
-              }}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="What needs to be done?"
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+              className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-blue-500"
             />
 
-            <select
-              value={priority}
-              onChange={(e) =>
-                setPriority(
-                  e.target.value as Task["priority"]
-                )
-              }
-              className="bg-[#11131a] border border-white/10 rounded-xl px-4 py-3 outline-none"
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description (optional)"
+              rows={3}
+              className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-blue-500"
+            />
 
             <button
               onClick={addTask}
-              className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-medium transition"
+              disabled={adding || !title.trim()}
+              className="rounded-xl bg-blue-600 px-5 py-3 font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Add Task
+              {adding ? "Creating..." : "＋ Create Task"}
             </button>
 
           </div>
-
         </div>
 
-        {/* Task List */}
-        <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-6">
+        {/* Tasks */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">
+              Your Tasks
+            </h2>
 
-          <h2 className="text-xl font-semibold">
-            My Tasks
-          </h2>
-
-          <div className="mt-5 space-y-3">
-
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center gap-4 border border-white/10 rounded-xl p-4"
-              >
-
-                <button
-                  onClick={() => toggleTask(task.id)}
-                  className={`w-6 h-6 rounded-md border flex items-center justify-center ${
-                    task.completed
-                      ? "bg-blue-600 border-blue-600"
-                      : "border-white/20"
-                  }`}
-                >
-                  {task.completed && "✓"}
-                </button>
-
-                <div className="flex-1">
-
-                  <p
-                    className={
-                      task.completed
-                        ? "line-through text-gray-500"
-                        : "text-white"
-                    }
-                  >
-                    {task.title}
-                  </p>
-
-                  <span className="text-xs text-gray-500">
-                    {task.priority} priority
-                  </span>
-
-                </div>
-
-                <button
-                  onClick={() => deleteTask(task.id)}
-                  className="text-sm text-gray-500 hover:text-red-400"
-                >
-                  Delete
-                </button>
-
-              </div>
-            ))}
-
+            <span className="text-sm text-gray-500">
+              {tasks.length} task{tasks.length === 1 ? "" : "s"}
+            </span>
           </div>
 
-          {tasks.length === 0 && (
-            <div className="text-center py-10 text-gray-500">
-              No tasks yet.
+          {loading ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-gray-500">
+              Loading tasks...
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+              <div className="text-4xl mb-4">✓</div>
+
+              <h3 className="text-lg font-semibold">
+                No tasks yet
+              </h3>
+
+              <p className="text-gray-500 mt-2">
+                Create your first task above.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex items-start gap-4"
+                >
+
+                  <button
+                    onClick={() => toggleTask(task)}
+                    className={`mt-1 w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${
+                      task.completed
+                        ? "bg-green-500 border-green-500"
+                        : "border-white/20 hover:border-blue-500"
+                    }`}
+                  >
+                    {task.completed && "✓"}
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <h3
+                      className={`font-semibold ${
+                        task.completed
+                          ? "line-through text-gray-500"
+                          : ""
+                      }`}
+                    >
+                      {task.title}
+                    </h3>
+
+                    {task.description && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        {task.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => deleteTask(task.id)}
+                    className="text-gray-500 hover:text-red-400 transition"
+                    title="Delete task"
+                  >
+                    🗑
+                  </button>
+
+                </div>
+              ))}
+
             </div>
           )}
-
         </div>
 
       </div>
