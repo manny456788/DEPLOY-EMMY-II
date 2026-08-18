@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type Note = {
   id: number;
@@ -9,30 +10,63 @@ type Note = {
   createdAt: string;
 };
 
-export default function NotesPage() {
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: 1,
-      title: "Manny OS Vision",
-      content:
-        "Build Manny OS into a personal digital command center that brings productivity, AI, creativity and development together.",
-      createdAt: "Today",
-    },
-    {
-      id: 2,
-      title: "Ideas",
-      content:
-        "Create a powerful workspace where projects, tasks, notes and AI work together.",
-      createdAt: "Today",
-    },
-  ]);
+function formatDate(date: string) {
+  const d = new Date(date);
+  const now = new Date();
 
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+
+  if (sameDay) return "Today";
+
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export default function NotesPage() {
+  const [notes, setNotes] = useState<Note[]>([]);
   const [search, setSearch] = useState("");
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function loadNotes() {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("notes")
+      .select("id, title, content, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading notes:", error);
+      setLoading(false);
+      return;
+    }
+
+    setNotes(
+      (data ?? []).map((note) => ({
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        createdAt: formatDate(note.created_at),
+      }))
+    );
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadNotes();
+  }, []);
 
   function openNewNote() {
     setEditingId(null);
@@ -48,48 +82,63 @@ export default function NotesPage() {
     setShowEditor(true);
   }
 
-  function saveNote() {
-    if (!title.trim() || !content.trim()) return;
+  async function saveNote() {
+    if (!title.trim() || !content.trim() || saving) return;
+
+    setSaving(true);
 
     if (editingId !== null) {
-      setNotes((current) =>
-        current.map((note) =>
-          note.id === editingId
-            ? {
-                ...note,
-                title,
-                content,
-              }
-            : note
-        )
-      );
-    } else {
-      const newNote: Note = {
-        id: Date.now(),
-        title,
-        content,
-        createdAt: "Just now",
-      };
+      const { error } = await supabase
+        .from("notes")
+        .update({
+          title: title.trim(),
+          content: content.trim(),
+        })
+        .eq("id", editingId);
 
-      setNotes((current) => [newNote, ...current]);
+      if (error) {
+        console.error("Error updating note:", error);
+        setSaving(false);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("notes").insert({
+        title: title.trim(),
+        content: content.trim(),
+      });
+
+      if (error) {
+        console.error("Error creating note:", error);
+        setSaving(false);
+        return;
+      }
     }
+
+    await loadNotes();
 
     setShowEditor(false);
     setTitle("");
     setContent("");
     setEditingId(null);
+    setSaving(false);
   }
 
-  function deleteNote(id: number) {
-    setNotes((current) =>
-      current.filter((note) => note.id !== id)
-    );
+  async function deleteNote(id: number) {
+    const { error } = await supabase
+      .from("notes")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting note:", error);
+      return;
+    }
+
+    setNotes((current) => current.filter((note) => note.id !== id));
   }
 
   const filteredNotes = notes.filter((note) => {
-    const text =
-      `${note.title} ${note.content}`.toLowerCase();
-
+    const text = `${note.title} ${note.content}`.toLowerCase();
     return text.includes(search.toLowerCase());
   });
 
@@ -99,7 +148,6 @@ export default function NotesPage() {
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-8">
-
           <div>
             <p className="text-blue-400 text-sm font-medium">
               MANNY OS
@@ -120,7 +168,6 @@ export default function NotesPage() {
           >
             + New Note
           </button>
-
         </div>
 
         {/* Search */}
@@ -136,15 +183,11 @@ export default function NotesPage() {
         {/* Editor */}
         {showEditor && (
           <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-6 mb-6">
-
             <h2 className="text-xl font-semibold">
-              {editingId !== null
-                ? "Edit Note"
-                : "Create Note"}
+              {editingId !== null ? "Edit Note" : "Create Note"}
             </h2>
 
             <div className="mt-5 space-y-4">
-
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -161,12 +204,12 @@ export default function NotesPage() {
               />
 
               <div className="flex gap-3">
-
                 <button
                   onClick={saveNote}
-                  className="bg-blue-600 hover:bg-blue-500 px-5 py-3 rounded-xl font-medium"
+                  disabled={saving}
+                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-3 rounded-xl font-medium"
                 >
-                  Save Note
+                  {saving ? "Saving..." : "Save Note"}
                 </button>
 
                 <button
@@ -175,25 +218,24 @@ export default function NotesPage() {
                 >
                   Cancel
                 </button>
-
               </div>
-
             </div>
           </div>
         )}
 
         {/* Notes */}
-        {filteredNotes.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-20 text-gray-500">
+            Loading notes...
+          </div>
+        ) : filteredNotes.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-
             {filteredNotes.map((note) => (
               <div
                 key={note.id}
                 className="border border-white/10 bg-white/[0.03] rounded-2xl p-6 hover:bg-white/[0.05] transition"
               >
-
                 <div className="flex items-start justify-between gap-3">
-
                   <h2 className="text-xl font-semibold">
                     {note.title}
                   </h2>
@@ -201,7 +243,6 @@ export default function NotesPage() {
                   <span className="text-xs text-gray-600">
                     {note.createdAt}
                   </span>
-
                 </div>
 
                 <p className="text-gray-400 text-sm mt-4 leading-6">
@@ -209,7 +250,6 @@ export default function NotesPage() {
                 </p>
 
                 <div className="flex gap-4 mt-6 pt-4 border-t border-white/10">
-
                   <button
                     onClick={() => openEditNote(note)}
                     className="text-sm text-blue-400 hover:text-blue-300"
@@ -223,19 +263,15 @@ export default function NotesPage() {
                   >
                     Delete
                   </button>
-
                 </div>
-
               </div>
             ))}
-
           </div>
         ) : (
           <div className="text-center py-20 text-gray-500">
             No notes found.
           </div>
         )}
-
       </div>
     </main>
   );
