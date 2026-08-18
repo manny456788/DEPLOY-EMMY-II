@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type Project = {
   id: number;
@@ -10,49 +11,65 @@ type Project = {
 };
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 1,
-      name: "Manny OS",
-      description: "Personal digital command center.",
-      status: "Active",
-    },
-    {
-      id: 2,
-      name: "YouTube Automation",
-      description: "Content creation and publishing system.",
-      status: "Planning",
-    },
-  ]);
-
+  const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  function createProject() {
-    if (!name.trim()) return;
+  async function loadProjects() {
+    setLoading(true);
 
-    const newProject: Project = {
-      id: Date.now(),
-      name,
-      description,
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id, name, description, status")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading projects:", error);
+      setLoading(false);
+      return;
+    }
+
+    setProjects((data ?? []) as Project[]);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  async function createProject() {
+    if (!name.trim() || saving) return;
+
+    setSaving(true);
+
+    const { error } = await supabase.from("projects").insert({
+      name: name.trim(),
+      description: description.trim(),
       status: "Planning",
-    };
+    });
 
-    setProjects((current) => [...current, newProject]);
+    if (error) {
+      console.error("Error creating project:", error);
+      setSaving(false);
+      return;
+    }
+
+    await loadProjects();
 
     setName("");
     setDescription("");
     setShowForm(false);
+    setSaving(false);
   }
 
   return (
     <main className="min-h-screen bg-[#08090d] text-white p-6 md:p-10">
       <div className="max-w-6xl mx-auto">
 
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-10">
-
           <div>
             <p className="text-blue-400 text-sm font-medium">
               MANNY OS
@@ -73,19 +90,15 @@ export default function ProjectsPage() {
           >
             + New Project
           </button>
-
         </div>
 
-        {/* Create Project Form */}
         {showForm && (
           <div className="border border-white/10 bg-white/[0.03] rounded-2xl p-6 mb-6">
-
             <h2 className="text-xl font-semibold">
               Create a project
             </h2>
 
             <div className="mt-5 space-y-4">
-
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -102,12 +115,12 @@ export default function ProjectsPage() {
               />
 
               <div className="flex gap-3">
-
                 <button
                   onClick={createProject}
-                  className="bg-blue-600 hover:bg-blue-500 px-5 py-3 rounded-xl font-medium"
+                  disabled={saving}
+                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-3 rounded-xl font-medium"
                 >
-                  Create Project
+                  {saving ? "Creating..." : "Create Project"}
                 </button>
 
                 <button
@@ -116,53 +129,53 @@ export default function ProjectsPage() {
                 >
                   Cancel
                 </button>
-
               </div>
-
             </div>
           </div>
         )}
 
-        {/* Projects */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {loading ? (
+            <div className="col-span-full text-center py-16 text-gray-500">
+              Loading projects...
+            </div>
+          ) : (
+            projects.map((project) => (
+              <div
+                key={project.id}
+                className="border border-white/10 bg-white/[0.03] rounded-2xl p-6 hover:bg-white/[0.05] transition"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold">
+                      {project.name}
+                    </h2>
 
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              className="border border-white/10 bg-white/[0.03] rounded-2xl p-6 hover:bg-white/[0.05] transition"
-            >
+                    <p className="text-gray-500 text-sm mt-2">
+                      {project.description}
+                    </p>
+                  </div>
 
-              <div className="flex items-start justify-between gap-4">
-
-                <div>
-                  <h2 className="text-xl font-semibold">
-                    {project.name}
-                  </h2>
-
-                  <p className="text-gray-500 text-sm mt-2">
-                    {project.description}
-                  </p>
+                  <span className="text-xs bg-white/5 px-3 py-1 rounded-full whitespace-nowrap">
+                    {project.status}
+                  </span>
                 </div>
 
-                <span className="text-xs bg-white/5 px-3 py-1 rounded-full whitespace-nowrap">
-                  {project.status}
-                </span>
-
+                <div className="mt-8 pt-4 border-t border-white/10">
+                  <button className="text-sm text-blue-400 hover:text-blue-300">
+                    Open project →
+                  </button>
+                </div>
               </div>
-
-              <div className="mt-8 pt-4 border-t border-white/10">
-
-                <button className="text-sm text-blue-400 hover:text-blue-300">
-                  Open project →
-                </button>
-
-              </div>
-
-            </div>
-          ))}
-
+            ))
+          )}
         </div>
 
+        {!loading && projects.length === 0 && (
+          <div className="text-center py-16 text-gray-500">
+            No projects yet.
+          </div>
+        )}
       </div>
     </main>
   );
